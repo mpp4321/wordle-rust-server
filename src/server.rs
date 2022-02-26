@@ -156,6 +156,15 @@ impl Server {
     pub fn init_player(&mut self, s: &Uuid) {
         self.connections.insert(s.clone(), PlayerState::default());
     }
+
+    pub fn has_lobby(&self, s: &Uuid) -> bool {
+        let player_ref = self.connections.get(&s).expect("Player doesn't exist");
+        player_ref.lobby.is_some() && self.lobbies.contains_key(&player_ref.lobby.unwrap())
+    }
+
+    pub fn update_wins(&mut self)
+    {
+    }
 }
 
 /*

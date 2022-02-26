@@ -12,6 +12,26 @@ lazy_static! {
 const HOST: &'static str = "127.0.0.1";
 const PORT: u16 = 8080;
 
+#[get("/submit/{guess}")]
+async fn submit_guess(request: HttpRequest, params: web::Path<String>) -> impl Responder {
+    let server_ref = SERVER.lock().unwrap();
+    let key = params.into_inner();
+    let uuid_wrap = server::get_player_uuid(&request);
+
+    if uuid_wrap.is_none() {
+        return HttpResponse::BadRequest();
+    }
+
+    let uuid = uuid_wrap.unwrap();
+
+    if !server_ref.has_lobby(&uuid) {
+        return HttpResponse::BadRequest()
+    }
+    server_ref.player_submit_move(&uuid, key);
+    server_ref.update_wins();
+    HttpResponse::Ok()
+}
+
 #[get("/join/{lobby_id}")]
 async fn join_lobby_id(request: HttpRequest, params: web::Path<String>) -> impl Responder {
     let mut server_ref = SERVER.lock().unwrap();

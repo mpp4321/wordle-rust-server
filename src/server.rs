@@ -19,7 +19,7 @@ pub fn get_player_uuid(req: &HttpRequest) -> Option<Uuid>
 /*
  * Helper structs
  */
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[allow(dead_code)]
 pub enum CharColor
 {
@@ -62,6 +62,8 @@ impl Display for WordGuess
 #[derive(Default)]
 pub struct PlayerState
 {
+    // player's display name
+    pub name: String,
     // whether a player is an owner of their lobby
     pub is_owner: bool,
     // Some(lobby_id) or None
@@ -70,13 +72,26 @@ pub struct PlayerState
     pub word_guesses: Vec<WordGuess>
 }
 
+impl PlayerState {
+
+    pub fn has_won(&self) -> bool
+    {
+        self.word_guesses
+            .iter()
+            .map(|a| a.char_states.iter())
+            .all(|mut b| 
+                 b.all(|a| *a == CharColor::Green))
+    }
+
+}
+
 #[derive(Default)]
 pub struct LobbyState
 {
     pub started: bool,
     pub ended: bool,
     pub chosen_word: String,
-    pub players: Vec<u32>
+    pub players: Vec<Uuid>
 }
 
 /*
@@ -98,17 +113,13 @@ impl Server {
         }
     }
 
+    #[allow(dead_code)]
     pub fn create_lobby(&mut self, lobby_name: String)
     {
-        self.lobbies.insert(lobby_name, LobbyState::default());
-    }
-
-    pub fn set_word(&mut self, lobby: &String, word: String)
-    {
-        self.lobbies
-            .get_mut(lobby)
-            .unwrap()
-            .chosen_word = word;
+        self.lobbies.insert(lobby_name, LobbyState {
+            chosen_word: /*TODO*/"foo".into(),
+            ..LobbyState::default()
+        });
     }
 
     pub fn get_player(&self, uuid: &Uuid) -> &PlayerState
@@ -159,11 +170,20 @@ impl Server {
 
     pub fn has_lobby(&self, s: &Uuid) -> bool {
         let player_ref = self.connections.get(&s).expect("Player doesn't exist");
-        player_ref.lobby.is_some() && self.lobbies.contains_key(&player_ref.lobby.unwrap())
+        player_ref.lobby.is_some() && self.lobbies.contains_key(player_ref.lobby.as_ref().unwrap())
     }
 
-    pub fn update_wins(&mut self)
-    {
+    pub fn any_winners(&self, lobby: &String) -> Option<Uuid> {
+        let vec_players = self.lobbies.get(lobby).expect("Called any_winners without verifying existence").players.iter();
+        vec_players.filter(|a| self.get_player(&a).has_won()).next().map(|a| a.clone())
+    }
+
+    pub fn end_game(&mut self, lobby: &String) {
+        let lobby_players = self.lobbies.get(lobby).unwrap().players.clone();
+        for player in lobby_players {
+            self.get_player_mut(&player).lobby = None
+        }
+        self.lobbies.remove(lobby);
     }
 }
 
@@ -185,7 +205,6 @@ mod tests {
         server.init_player(&uuid);
         server.create_lobby("test".into());
         server.get_player_mut(&uuid).lobby = Some("test".into());
-        server.set_word(&"test".into(), "testa".into());
         println!("{}", format!("{}", server.player_submit_move(&uuid, "testb".into())) );
     }
 }

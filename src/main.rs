@@ -1,35 +1,56 @@
 mod server;
 
 use uuid::Uuid;
-use actix_web::{get, web, App, HttpServer, Responder, HttpResponse, http::{StatusCode, header::{self, HeaderValue}}, cookie::Cookie, HttpRequest};
+use actix_web::{get, web::{self, Json}, App, HttpServer, Responder, HttpResponse, http::{StatusCode, header::{self, HeaderValue}}, cookie::Cookie, HttpRequest};
 use std::{io, sync::Mutex};
 use lazy_static::lazy_static;
 
 lazy_static! {
     static ref SERVER: Mutex<server::Server> = Mutex::new(server::Server::new());
+    static ref SUBMIT_ERROR: fn() -> Json<SubmitResponse> = || Json(
+        SubmitResponse {
+            error: true,
+            win: "".into()
+        }
+    );
 }
 
 const HOST: &'static str = "127.0.0.1";
 const PORT: u16 = 8080;
 
+#[derive(serde_derive::Serialize)]
+struct SubmitResponse {
+    win: String,
+    error: bool
+}
+
 #[get("/submit/{guess}")]
 async fn submit_guess(request: HttpRequest, params: web::Path<String>) -> impl Responder {
-    let server_ref = SERVER.lock().unwrap();
+    let mut server_ref = SERVER.lock().unwrap();
     let key = params.into_inner();
     let uuid_wrap = server::get_player_uuid(&request);
 
     if uuid_wrap.is_none() {
-        return HttpResponse::BadRequest();
+        return SUBMIT_ERROR();
     }
 
     let uuid = uuid_wrap.unwrap();
 
     if !server_ref.has_lobby(&uuid) {
-        return HttpResponse::BadRequest()
+        return SUBMIT_ERROR();
     }
     server_ref.player_submit_move(&uuid, key);
-    server_ref.update_wins();
-    HttpResponse::Ok()
+    let lobby = server_ref.get_player(&uuid).lobby.as_ref().unwrap().clone();
+    if let Some(player) = server_ref.any_winners(&lobby) {
+        server_ref.end_game(&lobby);
+        return Json(
+            SubmitResponse {
+                win: server_ref.get_player(&player).name.clone(),
+                error: false
+            }
+        );
+    }
+    Json( SubmitResponse { win: "".into(), error: false } )
 }
 
 #[get("/join/{lobby_id}")]

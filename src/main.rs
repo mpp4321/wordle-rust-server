@@ -1,4 +1,5 @@
 mod server;
+mod words;
 
 use uuid::Uuid;
 use actix_web::{get, web::{self, Json}, App, HttpServer, Responder, HttpResponse, http::{StatusCode, header::{self, HeaderValue}}, cookie::Cookie, HttpRequest};

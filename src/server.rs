@@ -1,6 +1,8 @@
 use std::{collections::{HashMap, HashSet}, fmt::{Display, Formatter}};
 use actix_web::HttpRequest;
-use uuid::Uuid;
+use uuid::Uuid;
+
+use crate::words::get_random_word;
 
 /*
  * Some utility functions
@@ -117,7 +119,7 @@ impl Server {
     pub fn create_lobby(&mut self, lobby_name: String)
     {
         self.lobbies.insert(lobby_name, LobbyState {
-            chosen_word: /*TODO*/"foo".into(),
+            chosen_word: get_random_word().into(),
             ..LobbyState::default()
         });
     }

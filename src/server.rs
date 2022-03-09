@@ -146,7 +146,7 @@ impl Server {
         let mut lobby_chars = lobby_word.chars();
         let lobby_set: HashSet<char> = lobby_chars.clone().collect();
         let mut built_guess = WordGuess {
-            word: lobby_word.clone(),
+            word: guess.clone(),
             char_states: vec![]
         };
         for c_guess in guess.chars() {
@@ -204,9 +204,13 @@ mod tests {
     {
         let mut server = server::Server::default();
         let uuid = uuid::Uuid::new_v4();
+        // Add player to server connection with id UUID
         server.init_player(&uuid);
+        // Inits lobby w/ random word
         server.create_lobby("test".into());
+        // Gets a reference to playerstate
         server.get_player_mut(&uuid).lobby = Some("test".into());
-        println!("{}", format!("{}", server.player_submit_move(&uuid, "testb".into())) );
+        // Submits a move for the player by id and string guess
+        println!("{}\n", server.player_submit_move(&uuid, "zzzzz".into()));
     }
 }
